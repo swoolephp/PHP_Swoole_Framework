@@ -81,6 +81,7 @@ class StaticServer {
         return false;
     }
 
+    //phan nay se con nghien cuu update them. Ae nen custom them khi dung nhe.
     private function sanitizeUri(string $uri): string {
         // Remove any null bytes
         $uri = str_replace("\0", '', $uri);
