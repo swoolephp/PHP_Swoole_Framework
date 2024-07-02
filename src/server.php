@@ -61,6 +61,7 @@ $server->on('connect', function (Server $server, int $fd, int $reactorId) use ($
 });
 
 $server->on("request", function (Request $request, Response $response) use ($config, $antiDDoS, $staticServer, $application) {
+    $response->header("Server", "PHP-Swoole-Framework");
     if ($staticServer->handle($request, $response)) {
         return;
     }
