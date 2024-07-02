@@ -1,0 +1,17 @@
+{
+    "name": "bigcat/swooleframework",
+    "description": "Super Fast framework for PHP Swoole",
+    "version": "1.0",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "authors": [
+        {
+            "name": "BigCat"
+        }
+    ],
+    "require": {}
+}
