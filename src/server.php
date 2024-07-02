@@ -42,7 +42,7 @@ if ($config['anti_ddos']['enable']){
     $config['anti_ddos']['block_list_file'] = $config['writable']['data'].'/IP_BANNED.block';
     $antiDDoS = new AntiDDoS($config['anti_ddos'], $logger); //init Load AntiDdos One Time (Fixed IO)
 }else{
-    null;
+    $antiDDoS = null;
 }
 //+ Module Router
 $config_router = require BASE_PATH . '/config/router.php';
