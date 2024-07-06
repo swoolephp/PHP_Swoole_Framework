@@ -15,6 +15,8 @@ use App\Core\AsyncLogger;
 use App\Core\AntiDDoS;
 use App\Core\Router;
 use App\Core\Application;
+use App\Database\Database;
+use App\Cache\CacheManager;
 
 Runtime::enableCoroutine();
 $config = Config::getInstance()->get();
@@ -22,8 +24,14 @@ $config = Config::getInstance()->get();
 // Prepare SSL configuration only if SSL is enabled in the config
 $serverOptions = [
     'worker_num' => swoole_cpu_num(), // Số lượng worker process or số lượng CPU, tăng giá trị này để xử lý nhiều yêu cầu đồng thời hơn. Hàm này đang là auto
+    'max_coroutine' => 1000*swoole_cpu_num(),
     'hook_flags' => SWOOLE_HOOK_ALL, // convert 1 số hàm php thông thường sang PHP SWOOLE để tận dụng Nonblocking IO. SWOOLE_HOOK_ALL or ds sau: SWOOLE_HOOK_TCP, SWOOLE_HOOK_UDP, SWOOLE_HOOK_UNIX, SWOOLE_HOOK_UDG, SWOOLE_HOOK_SSL, SWOOLE_HOOK_TLS, SWOOLE_HOOK_STREAM_FUNCTION, SWOOLE_HOOK_FILE, SWOOLE_HOOK_SLEEP, SWOOLE_HOOK_PROC, SWOOLE_HOOK_CURL, SWOOLE_HOOK_BLOCKING_FUNCTION, SWOOLE_HOOK_ALL
     'daemonize' => false, // Đặt thành true nếu muốn server chạy dưới dạng background daemon (chế độ chạy thực tế)
+    'http_compression' => true, // Bật nén gzip
+    'http_compression_level' => 5, // Mức độ nén gzip
+    'max_conn' => 2000, // Giới hạn số lượng kết nối
+    'max_request' => 5000, // Giới hạn số lượng yêu cầu mỗi worker xử lý trước khi được khởi động lại
+    'open_tcp_nodelay' => true, // Bật TCP_NODELAY
 ];
 if ($config['ssl']['enable']) {
     $serverOptions['ssl_cert_file'] = $config['ssl']['cert_file'];
@@ -50,6 +58,31 @@ $router = new Router($config_router, $logger);
 //+ Module Chính Application
 $application = new Application($router, $logger);
 
+$server->on("workerStop", function (Server $server, int $workerId) {
+    Swoole\Event::defer(function () {
+        Swoole\Coroutine\run(function () {
+            Database::closeAll();
+        });
+    });
+});
+
+$server->on('workerExit', function (Server $server, int $workerId) {
+    // Clear all timers and exit events to prevent worker exit timeout issues
+    \Swoole\Timer::clearAll();
+    \Swoole\Event::exit();
+});
+
+register_shutdown_function(function () {
+    if (extension_loaded('swoole') && \Swoole\Coroutine::getCid() > 0) {
+        Swoole\Coroutine\run(function () {
+            Database::closeAll();
+        });
+    } else {
+        Database::closeAll();
+    }
+});
+
+
 $server->on("start", function (Server $server) {
     echo "Swoole server is started at http://127.0.0.1:9501\n";
 });
@@ -61,7 +94,13 @@ $server->on('connect', function (Server $server, int $fd, int $reactorId) use ($
 });
 
 $server->on("request", function (Request $request, Response $response) use ($config, $antiDDoS, $staticServer, $application) {
+    //Các hàm thông số bảo mật
+    $response->header("X-Frame-Options", "DENY");
+    $response->header("X-Content-Type-Options", "nosniff");
+    $response->header("X-XSS-Protection", "1; mode=block");
+    $response->header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     $response->header("Server", "PHP-Swoole-Framework");
+
     if ($staticServer->handle($request, $response)) {
         return;
     }
@@ -78,20 +117,30 @@ $server->on("request", function (Request $request, Response $response) use ($con
     }
 
     Swoole\Coroutine::create(function () use ($request, $response, $application){
+        Database::getInstance('mysql');
+        CacheManager::getInstance('redis');
+        //Database::getInstance('scylladb');
+        //Database::getInstance('postgresql');
+
         ob_start();
         try {
             //$result = $application->handle($request, $response);
             $application->handle($request, $response);
             $result = ob_get_clean();
+
             $response->header("Content-Type", "text/html; charset=utf-8");
             $response->end($result);
         } catch (\Throwable $e) {
-            ob_end_clean();
+            @ob_end_clean();
             $response->status(500);
             $response->header("Content-Type", "text/plain; charset=utf-8");
             $response->end("Internal Server Error: " . $e->getMessage());
         }
     });
+});
+
+$server->on("workerError", function (Server $server, int $workerId, int $workerPid, int $exitCode, int $signal) use ($logger) {
+    $logger->error("*** WORKER ERROR: WorkerID=$workerId, PID=$workerPid, ExitCode=$exitCode, Signal=$signal");
 });
 
 $server->start();

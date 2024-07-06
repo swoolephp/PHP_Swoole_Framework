@@ -73,6 +73,7 @@ class AntiDDoS
                 ];
             } else {
                 // Remove expired IP from block list
+                $this->requestsTable->set($ip, ['count' => 0, 'time' => $currentTime]);
                 $this->blockListTable->del($ip);
                 $this->saveBlockList();
             }
@@ -99,21 +100,21 @@ class AntiDDoS
 
         // Determine if blocking is necessary
         if ($count > $this->rateLimit) {
-            // Apply different block durations based on number of violations
-            if ($count > $this->rateLimit * 3) {
-                $this->blockIP($ip, 'critical');
+            if ($count > $this->rateLimit * 7) {
+                $level = 'critical';
+            } elseif ($count > $this->rateLimit * 5) {
+                $level = 'higher';
+            } elseif ($count > $this->rateLimit * 3) {
+                $level = 'high';
             } elseif ($count > $this->rateLimit * 2) {
-                $this->blockIP($ip, 'higher');
-            } elseif ($count > $this->rateLimit * 1.5) {
-                $this->blockIP($ip, 'high');
-            } elseif ($count > $this->rateLimit) {
-                $this->blockIP($ip, 'medium');
-            } else {
-                $this->blockIP($ip, 'low');
+                $level = 'medium';
+            }elseif ($count > $this->rateLimit) {
+                $level = 'low';
             }
+            $this->blockIP($ip, $level);
             return [
                 'status' => false,
-                'remaining' => $this->blockDurations['medium']
+                'remaining' => $this->blockDurations[$level]
             ];
         }
 

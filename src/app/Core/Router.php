@@ -1,8 +1,6 @@
 <?php
 namespace App\Core;
 
-use App\Controllers\ErrorController;
-
 class Router {
     protected $routes = [];
 
@@ -57,6 +55,7 @@ class Router {
             }
             
             // Nếu không tìm thấy route, thử xử lý động
+            
             foreach ($this->routes[$method] as $pattern => $handler) {
                 [$controllerName, $defaultMethod] = $handler;
                 $controller = new $controllerName();
@@ -70,12 +69,13 @@ class Router {
                     return call_user_func_array([$controller, $possibleMethod], []);
                 }
             }
+                
 
             throw new \Exception("Route not found for {$uri}.");
         } catch (\Exception $e) {
             $this->logger->info($e->getMessage());
-            $errorController = new ErrorController();
-            return $errorController->show404();
+            echo $e->getMessage();
+            return;
         }
     }
 }

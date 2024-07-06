@@ -2,6 +2,8 @@
 
 namespace App\Core;
 
+use Swoole\Coroutine\System;
+
 class AsyncLogger
 {
     protected $logPath;
@@ -36,6 +38,6 @@ class AsyncLogger
 
     protected function writeLog($message)
     {
-        file_put_contents($this->logPath, $message, FILE_APPEND | LOCK_EX);
+        System::writeFile($this->logPath, $message, FILE_APPEND | LOCK_EX);
     }
 }

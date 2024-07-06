@@ -1,27 +1,57 @@
 <?php
 return [
-    'db' => [
-        'host' => '172.20.0.2',
+    'scylladb' => [
+        'host' => 'localhost',
+        'port' => 9042,
+        'dbname' => 'your_keyspace',
+        'user' => 'your_username',
+        'password' => 'your_password',
+        'max_idle_time' => 3000,
+        'cleanup_interval' => 5 //5000 ms
+    ],
+    'mysql' => [
+        'host' => '172.19.0.3',
+        'port' => 3306,
         'dbname' => 'swooleframework',
         'user' => 'nguoidungswoole',
         'password' => 'MatKhauNgauNhien()^!2024',
-        'charset' => 'utf8',
-        'port' => 3306
+        'charset' => 'utf8mb4',
+        'max_idle_time' => 300,
+        'cleanup_interval' => 5 //5000 ms
     ],
-    'redis' => [
-        'host' => '172.20.0.3',
-        'port' => 6379,
-        'user' => '',  // Nếu không cần user, có thể bỏ qua
-        'password' => '',
+    'postgresql' => [
+        'host' => 'localhost',
+        'port' => 5432,
+        'dbname' => 'your_database',
+        'user' => 'your_user',
+        'password' => 'your_password',
+        'charset' => 'UTF8', // Set charset here
+        'max_idle_time' => 300,
+        'cleanup_interval' => 5 //5000 ms
     ],
+
+
     'writable' => [
         'cache' => BASE_PATH . '/writable/cache',
         'data' => BASE_PATH . '/writable/data',
         'logs'  =>  BASE_PATH . '/writable/logs',
     ],
+    'cache' => [
+        'driver' => 'redis', // file, redis, apc
+        'pool_size' => 10,
+        'max_idle_time'  =>  300,
+        'cleanup_interval' => 5 //5000 ms
+    ],
+    'redis' => [
+        'host' => '172.19.0.2',
+        'port' => 6379,
+        'user' => '',  // Nếu không cần user, có thể bỏ qua
+        'password' => '',
+    ],
+    
     'anti_ddos' => [
-        'enable' => true,
-        'rate_limit' => 10,  // 100 requests per minute
+        'enable' => false,
+        'rate_limit' => 100,  // 100 requests per minute
         'block_duration' => [  // Duration in seconds
             'low' => 10,       // 10 seconds
             'medium' => 60,    // 1 minute
